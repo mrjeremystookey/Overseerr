@@ -25,19 +25,19 @@ class MediaRepository: MediaRepositoryProtocol {
             URLQueryItem(name: "sort", value: "mediaAdded")
         ])
         
-        let response = try await networkService.request(endpoint, responseType: MediaListResponse.self)
+        let response: MediaListResponse = try await networkService.request(endpoint)
         return response.results
     }
     
     func getUpcomingMovies() async throws -> [Movie] {
         let endpoint = Endpoint(path: "/discover/movies/upcoming")
-        let response = try await networkService.request(endpoint, responseType: MovieListResponse.self)
+        let response: MovieListResponse = try await networkService.request(endpoint)
         return response.results
     }
     
     func search(query: String) async throws -> [Media] {
         // Implement search
-         let endpoint = Endpoint(path: "/search", queryItems: [
+        _ = Endpoint(path: "/search", queryItems: [
             URLQueryItem(name: "query", value: query)
         ])
          // Search returns potentially mixed results (Person, Movie, TV). 

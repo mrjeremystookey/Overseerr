@@ -14,12 +14,12 @@ class UserRepository: UserRepositoryProtocol {
     
     func getCurrentUser() async throws -> User {
         let endpoint = Endpoint(path: "/auth/me")
-        return try await networkService.request(endpoint, responseType: User.self)
+        return try await networkService.request(endpoint)
     }
     
     func getAllUsers() async throws -> [User] {
         let endpoint = Endpoint(path: "/user", queryItems: [URLQueryItem(name: "take", value: "100")])
-        let response = try await networkService.request(endpoint, responseType: UserListResponse.self)
+        let response: UserListResponse = try await networkService.request(endpoint)
         return response.results
     }
 }

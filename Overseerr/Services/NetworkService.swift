@@ -1,18 +1,18 @@
 import Foundation
 
-enum HTTPMethod: String {
+@preconcurrency protocol NetworkServiceProtocol {
+    func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T
+    func request(_ endpoint: Endpoint) async throws -> Void
+}
+
+enum HTTPMethod: String, Sendable {
     case get = "GET"
     case post = "POST"
     case put = "PUT"
     case delete = "DELETE"
 }
 
-protocol NetworkServiceProtocol {
-    func request<T: Decodable>(_ endpoint: Endpoint, responseType: T.Type) async throws -> T
-    func request(_ endpoint: Endpoint) async throws -> Void
-}
-
-struct Endpoint {
+struct Endpoint: Sendable {
     let path: String
     let method: HTTPMethod
     let queryItems: [URLQueryItem]?
@@ -30,7 +30,7 @@ struct Endpoint {
     }
 }
 
-enum NetworkError: Error {
+enum NetworkError: Error, Sendable {
     case invalidURL
     case requestFailed(statusCode: Int)
     case decodingFailed
@@ -52,47 +52,51 @@ class NetworkService: NetworkServiceProtocol {
         self.apiKey = key
     }
     
-    func request<T: Decodable>(_ endpoint: Endpoint, responseType: T.Type) async throws -> T {
+    func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T {
         let request = try createRequest(from: endpoint)
         
-        // Debug
-        // print("Request: \(request.url?.absoluteString ?? "")")
-        
-        let (data, response) = try await session.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.unknown
-        }
-        
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw NetworkError.requestFailed(statusCode: httpResponse.statusCode)
-        }
+        Logger.network("\(request.httpMethod ?? "GET") \(request.url?.absoluteString ?? "")")
         
         do {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                Logger.error("Network: Unknown Response")
+                throw NetworkError.unknown
+            }
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                Logger.error("Network: Request Failed with Status \(httpResponse.statusCode)")
+                throw NetworkError.requestFailed(statusCode: httpResponse.statusCode)
+            }
+            
             let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase // Overseerr uses API-style snake_case, our models are camelCase? 
-            // NOTE: The API docs show camelCase for some fields but often snake_case for DB fields. 
-            // Let's assume standard camelCase for most new Swift models and if API returns snake_case we use .convertFromSnakeCase.
-            // Actually, usually Overseerr API returns camelCase. Let's check the users file I wrote earlier.
-            // The User model I wrote assumes camelCase (`plexToken`).
-            // The API doc screenshot `plexToken` is camelCase.
-            // So we probably don't need .convertFromSnakeCase as a default, or we can check.
-            // I'll stick to default for now and adjust if needed.
+            // decoder.keyDecodingStrategy = .convertFromSnakeCase // Kept commented as per previous decision
             return try decoder.decode(T.self, from: data)
+            
         } catch {
-            print("Decoding error: \(error)")
-            throw NetworkError.decodingFailed
+            Logger.error("Network Decoding/Request Error: \(error)")
+            throw error
         }
     }
     
     func request(_ endpoint: Endpoint) async throws -> Void {
         let request = try createRequest(from: endpoint)
         
-        let (_, response) = try await session.data(for: request)
+        Logger.network("\(request.httpMethod ?? "GET") \(request.url?.absoluteString ?? "")")
         
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            throw NetworkError.requestFailed(statusCode: statusCode)
+        do {
+            let (_, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                Logger.error("Network: Request Failed with Status \(statusCode)")
+                throw NetworkError.requestFailed(statusCode: statusCode)
+            }
+            // Logger.success("Network Request Successful") // Optional, might be too noisy
+        } catch {
+            Logger.error("Network Request Error: \(error)")
+            throw error
         }
     }
     
@@ -125,3 +129,4 @@ class NetworkService: NetworkServiceProtocol {
         return request
     }
 }
+
