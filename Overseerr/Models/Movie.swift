@@ -17,7 +17,7 @@ struct Movie: Codable, Identifiable {
     let releaseDate: String?
     let revenue: Int?
     let runtime: Int?
-    let status: String
+    let status: String?
     let tagline: String?
     let title: String
     let video: Bool

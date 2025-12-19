@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LoginView: View {
     @StateObject var viewModel: LoginViewModel
+    @Environment(\.openURL) var openURL
     
     var body: some View {
         ZStack {
@@ -90,6 +91,36 @@ struct LoginView: View {
                 .padding(.horizontal, 30)
                 .disabled(viewModel.isLoading)
                 
+                // OR Divider
+                HStack {
+                    Rectangle().frame(height: 1).foregroundColor(.gray.opacity(0.3))
+                    Text("OR").font(.caption).foregroundColor(.gray)
+                    Rectangle().frame(height: 1).foregroundColor(.gray.opacity(0.3))
+                }
+                .padding(.horizontal, 50)
+                
+                // Plex Sign In Button
+                Button(action: {
+                    Task {
+                        await viewModel.loginWithPlex()
+                    }
+                }) {
+                    HStack {
+                        // In a real app we'd use a Plex logo asset
+                        Image(systemName: "play.tv.fill")
+                        Text("Sign In with Plex")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(red: 229/255, green: 160/255, blue: 13/255)) // Plex Gold-ish
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 5)
+                }
+                .padding(.horizontal, 30)
+                .disabled(viewModel.isLoading)
+                
                 Spacer()
                 
                 // Footer
@@ -99,6 +130,11 @@ struct LoginView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: viewModel.plexAuthURL) { oldValue, newValue in
+            if let url = newValue {
+                openURL(url)
+            }
+        }
     }
 }
 

@@ -23,7 +23,7 @@ struct TVShow: Codable, Identifiable {
     let popularity: Double
     let productionCompanies: [ProductionCompany]?
     let seasons: [Season]?
-    let status: String
+    let status: String?
     let type: String
     let voteAverage: Double
     let voteCount: Int

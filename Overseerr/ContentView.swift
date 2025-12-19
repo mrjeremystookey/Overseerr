@@ -1,61 +1,66 @@
-//
-//  ContentView.swift
-//  Overseerr
-//
-//  Created by Jeremy Stookey on 12/18/25.
-//
-
 import SwiftUI
-import SwiftData
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+    // We construct VMs via DI in the App entry, but for TabView 
+    // we might need to access the container via Environment to create VMs on demand or pass them in.
+    // For simplicity, let's pass the container or the VMs we need.
+    // Ideally, we pass the Container to ContentView?
+    
+    // Refactoring to use EnvironmentObject for Container could be cleaner, 
+    // but sticking to constructor injection for now.
+    
+    let homeViewModel: HomeViewModel
+    let requestListViewModel: RequestListViewModel
+    
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        TabView {
+            // Home Tab
+            NavigationView {
+                List {
+                    if let user = homeViewModel.currentUser {
+                        Section("User") {
+                            Text("Logged in as: \(user.email ?? <#default value#>)")
+                        }
+                    }
+                    
+                    Section("Upcoming Movies") {
+                        ForEach(homeViewModel.upcomingMovies) { movie in
+                            Text(movie.title)
+                        }
+                    }
+                    
+                    Section("Recent Media") {
+                        ForEach(homeViewModel.recentMedia) { media in
+                        }
                     }
                 }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                .navigationTitle("Dashboard")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            Task {
+                                await homeViewModel.logout()
+                            }
+                        } label: {
+                            Text("Logout")
+                        }
                     }
                 }
+                .task {
+                    await homeViewModel.loadData()
+                }
             }
-        } detail: {
-            Text("Select an item")
-        }
-    }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+            .tabItem {
+                Label("Home", systemImage: "house")
             }
+            
+            // Requests Tab (Admin)
+            // We pass the RequestListView directly or wrapped
+            // Note: RequestListView has its own NavigationView
+            RequestListView(viewModel: requestListViewModel)
+                .tabItem {
+                    Label("Requests", systemImage: "tray.full")
+                }
         }
     }
-}
-
-#Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
 }

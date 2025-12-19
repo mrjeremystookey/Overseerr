@@ -5,7 +5,7 @@ struct Media: Codable, Identifiable {
     let tmdbId: Int?
     let tvdbId: Int?
     let imdbId: String?
-    let status: MediaStatus
+    let status: MediaStatus?
     let status4k: MediaStatus?
     let createdAt: String
     let updatedAt: String
@@ -22,7 +22,7 @@ struct Media: Codable, Identifiable {
     
     // Helper to determine active status
     var effectiveStatus: MediaStatus {
-        return status
+        return status ?? .unknown
     }
 }
 

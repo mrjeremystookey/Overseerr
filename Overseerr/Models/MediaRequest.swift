@@ -16,9 +16,11 @@ struct MediaRequest: Codable, Identifiable {
     let media: Media?
     let requestedBy: User?
     let modifiedBy: User?
+    let movie: Movie?
+    let tv: TVShow?
     
     enum CodingKeys: String, CodingKey {
-        case id, status, createdAt, updatedAt, type, is4k, serverId, profileId, rootFolder, languageProfileId, tags, seasons, media, requestedBy, modifiedBy
+        case id, status, createdAt, updatedAt, type, is4k, serverId, profileId, rootFolder, languageProfileId, tags, seasons, media, requestedBy, modifiedBy, movie, tv
     }
 }
 

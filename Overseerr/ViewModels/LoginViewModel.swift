@@ -40,4 +40,22 @@ class LoginViewModel: ObservableObject {
         
         isLoading = false
     }
+    func loginWithPlex() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let url = try await authService.startPlexLogin()
+            // The view will handle opening this URL if we pass it back or publish it.
+            // For now, we returns it or assume the View triggers openURL from a binding?
+            // Better: Published property.
+            self.plexAuthURL = url
+        } catch {
+            errorMessage = "Failed to start Plex login: \(error.localizedDescription)"
+        }
+        
+        isLoading = false
+    }
+    
+    @Published var plexAuthURL: URL?
 }

@@ -2,7 +2,7 @@ import Foundation
 
 struct User: Codable, Identifiable {
     let id: Int
-    let email: String
+    let email: String?
     let username: String?
     let plexToken: String?
     let plexUsername: String?

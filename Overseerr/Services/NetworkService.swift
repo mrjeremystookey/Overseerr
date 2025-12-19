@@ -17,11 +17,13 @@ struct Endpoint: Sendable {
     let method: HTTPMethod
     let queryItems: [URLQueryItem]?
     let body: Data?
+    let absoluteURL: URL?
     
-    init(path: String, method: HTTPMethod = .get, queryItems: [URLQueryItem]? = nil, body: Encodable? = nil) {
+    init(path: String, method: HTTPMethod = .get, queryItems: [URLQueryItem]? = nil, body: Encodable? = nil, absoluteURL: URL? = nil) {
         self.path = path
         self.method = method
         self.queryItems = queryItems
+        self.absoluteURL = absoluteURL
         if let body = body {
             self.body = try? JSONEncoder().encode(body)
         } else {
@@ -101,19 +103,32 @@ class NetworkService: NetworkServiceProtocol {
     }
     
     private func createRequest(from endpoint: Endpoint) throws -> URLRequest {
-        guard var urlComponents = URLComponents(url: baseURL.appendingPathComponent(endpoint.path), resolvingAgainstBaseURL: true) else {
-            throw NetworkError.invalidURL
+        let requestURL: URL
+        
+        if let absoluteURL = endpoint.absoluteURL {
+            let fullURL = absoluteURL.appendingPathComponent(endpoint.path)
+            guard var components = URLComponents(url: fullURL, resolvingAgainstBaseURL: true) else {
+                throw NetworkError.invalidURL
+            }
+            if let queryItems = endpoint.queryItems {
+                components.queryItems = queryItems
+            }
+            guard let url = components.url else { throw NetworkError.invalidURL }
+            requestURL = url
+        } else {
+            guard var urlComponents = URLComponents(url: baseURL.appendingPathComponent(endpoint.path), resolvingAgainstBaseURL: true) else {
+                throw NetworkError.invalidURL
+            }
+            if let queryItems = endpoint.queryItems {
+                urlComponents.queryItems = queryItems
+            }
+            guard let url = urlComponents.url else {
+                throw NetworkError.invalidURL
+            }
+            requestURL = url
         }
         
-        if let queryItems = endpoint.queryItems {
-            urlComponents.queryItems = queryItems
-        }
-        
-        guard let url = urlComponents.url else {
-            throw NetworkError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: requestURL)
         request.httpMethod = endpoint.method.rawValue
         request.httpBody = endpoint.body
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

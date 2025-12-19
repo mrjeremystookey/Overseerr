@@ -10,10 +10,12 @@ class HomeViewModel: ObservableObject {
     
     private let mediaRepository: MediaRepositoryProtocol
     private let userRepository: UserRepositoryProtocol
+    private let authService: AuthServiceProtocol
     
-    init(mediaRepository: MediaRepositoryProtocol, userRepository: UserRepositoryProtocol) {
+    init(mediaRepository: MediaRepositoryProtocol, userRepository: UserRepositoryProtocol, authService: AuthServiceProtocol) {
         self.mediaRepository = mediaRepository
         self.userRepository = userRepository
+        self.authService = authService
     }
     
     func loadData() async {
@@ -31,4 +33,18 @@ class HomeViewModel: ObservableObject {
             self.errorMessage = error.localizedDescription
         }
     }
+    
+    func logout() async {
+        do {
+            try await authService.logout()
+            // Clear local state after logout
+            self.currentUser = nil
+            self.upcomingMovies = []
+            self.recentMedia = []
+        } catch {
+            print("Logout failed: \(error)")
+            self.errorMessage = "Logout failed. Please try again."
+        }
+    }
 }
+

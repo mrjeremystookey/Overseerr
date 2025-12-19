@@ -18,10 +18,13 @@ struct RequestListView: View {
                     Task { await viewModel.loadRequests() }
                 }
                 
-                if viewModel.isLoading && viewModel.requests.isEmpty {
+                // Content based on ViewState
+                switch viewModel.state {
+                case .idle, .loading:
                     ProgressView()
                         .padding()
-                } else if viewModel.requests.isEmpty {
+                    
+                case .empty:
                     VStack(spacing: 20) {
                         Image(systemName: "tray")
                             .font(.system(size: 50))
@@ -30,9 +33,26 @@ struct RequestListView: View {
                             .foregroundColor(.gray)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
+                    
+                case .error(let message):
+                    VStack(spacing: 20) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundColor(.red)
+                        Text("Error")
+                            .font(.headline)
+                        Text(message)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                        Button("Retry") {
+                            Task { await viewModel.loadRequests() }
+                        }
+                    }
+                    .padding()
+                    
+                case .success(let requests):
                     List {
-                        ForEach(viewModel.requests) { request in
+                        ForEach(requests) { request in
                             RequestRow(request: request)
                                 .swipeActions(edge: .leading) {
                                     if request.status == .pending {
@@ -45,7 +65,7 @@ struct RequestListView: View {
                                     }
                                 }
                                 .swipeActions(edge: .trailing) {
-                                    if request.status != .declined { // Can decline any non-declined?
+                                    if request.status != .declined {
                                         Button(role: .destructive) {
                                             Task { await viewModel.denyRequest(request) }
                                         } label: {
@@ -64,12 +84,6 @@ struct RequestListView: View {
             .task {
                 await viewModel.loadRequests()
             }
-            .alert(item: Binding<String?>(
-                get: { viewModel.errorMessage.map { $0 } }, // Convert String to Identifiable String wrapper if needed, or stick to simple Text
-                set: { _ in viewModel.errorMessage = nil }
-            )) { msg in
-                Alert(title: Text("Error"), message: Text(msg))
-            }
         }
     }
 }
@@ -80,13 +94,6 @@ struct RequestRow: View {
     
     // Helper to get image URL (needs a real path builder later)
     var posterURL: URL? {
-        // Assuming TMDB poster path is available in Media or if not we might need to fetch it.
-        // The Request object has `media` which might have `posterPath` if we mapped it correctly.
-        // Standard TMDB image base: https://image.tmdb.org/t/p/w200
-        // Currently our models might differ slightly, let's check MediaRequest.media.
-        // Actually our Media model has external IDs, we might need to lookup poster based on Movie/TV data?
-        // Ah, MediaRequest extends Media? No, it HAS a media. 
-        // Let's use a placeholder or basic text for v1 if image url logic is complex.
         return nil
     }
     
@@ -103,28 +110,16 @@ struct RequestRow: View {
                 )
 
             VStack(alignment: .leading, spacing: 4) {
-                // We assume there's a title somewhere. 
-                // Wait, MediaRequest has `media` but Media model is mostly IDs and Status. 
-                // The API usually expands `media` to include content info OR we need to fetch content.
-                // However, `RequestRepository` response usually includes expanded info if we used the right endpoint.
-                // Let's look at the `MediaRequest` struct again. It has `media`.
-                // If `Media` struct in Swift only has IDs, we can't show title!
-                // We need to update `MediaRequest` or `Media` to include Title/Poster or generic metadata.
-                // The `Overseerr API` for `/request` returns objects that HAVE `media` inside them, 
-                // but usually the media info (title) is nested or we need to look at `MediaRequest` structure closer.
-                // Re-checking Docs/Assumption: MediaRequest often wraps the `Movie` or `TVShow`. 
-                // Let's assume for this step we display ID or Type, but we REALLY need to fetch/show titles.
-                // Just for this step, I'll show ID and Type.
-                
-                Text("Request #\(request.id)")
+                Text(request.movie?.title ?? request.tv?.name ?? "Request #\(request.id)")
                     .font(.headline)
+                    .lineLimit(1)
                 
                 Text(request.type.rawValue.capitalized)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
                 if let user = request.requestedBy {
-                    Text("By: \(user.email)") // Username might be nil
+                    Text("By: \(user.email ?? "Unknown")")  // Handle optional email
                         .font(.caption)
                         .foregroundColor(.blue)
                 }
@@ -147,9 +142,4 @@ struct RequestRow: View {
         case .pending: return .orange
         }
     }
-}
-
-// Extension to make String Identifiable for Alert
-extension String: @retroactive Identifiable {
-    public var id: String { self }
 }

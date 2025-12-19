@@ -4,9 +4,7 @@ import SwiftUI
 
 @MainActor
 class RequestListViewModel: ObservableObject {
-    @Published var requests: [MediaRequest] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
+    @Published var state: ViewState<[MediaRequest]> = .idle
     @Published var activeFilter: RequestFilter = .pending
     
     private let requestRepository: RequestRepositoryProtocol
@@ -26,16 +24,18 @@ class RequestListViewModel: ObservableObject {
     }
     
     func loadRequests() async {
-        isLoading = true
-        errorMessage = nil
+        state = .loading
         do {
             let fetched = try await requestRepository.getRequests(take: 50, skip: 0, filter: activeFilter.rawValue)
-            self.requests = fetched
+            if fetched.isEmpty {
+                state = .empty
+            } else {
+                state = .success(fetched)
+            }
         } catch {
             Logger.error("Failed to load requests: \(error)")
-            self.errorMessage = "Failed to load requests."
+            state = .error("Failed to load requests.")
         }
-        isLoading = false
     }
     
     func approveRequest(_ request: MediaRequest) async {
@@ -48,32 +48,24 @@ class RequestListViewModel: ObservableObject {
     
     private func updateStatus(for request: MediaRequest, status: RequestStatus) async {
         Logger.ui("User triggering \(status.label) for request \(request.id)")
-        // Optimistic update or wait for reload? Let's wait for reload to ensure consistency for now, 
-        // or just remove from list if filter is pending.
+        
+        // Optimistic update mechanism could be added here by mutating current state
+        // For safe implementation, we'll reload.
         
         do {
             _ = try await requestRepository.updateRequestStatus(requestId: request.id, status: status)
             Logger.success("Request \(request.id) updated to \(status.label)")
             
-            // Remove from local list if it no longer matches filter (e.g. was pending, now approved)
-            if activeFilter == .pending && status != .pending {
-                withAnimation {
-                    requests.removeAll { $0.id == request.id }
-                }
-            } else {
-                // Reload data to reflect changes
-                await loadRequests() 
-            }
+            // Reload to reflect changes and potentially change filter state
+            await loadRequests()
+            
         } catch {
             Logger.error("Failed to update status: \(error)")
-            self.errorMessage = "Action failed: \(error.localizedDescription)"
+            // If we are grounded in a success state, we might want to show a transient error?
+            // With ViewState, transitioning to .error replaces the list. 
+            // Ideally we'd have a transient error channel (like a toast), 
+            // but for this strict pattern:
+            state = .error("Action failed: \(error.localizedDescription)")
         }
     }
-    
-    /* 
-     // For future pagination support
-    func loadMore() async {
-        ...
-    }
-    */
 }
