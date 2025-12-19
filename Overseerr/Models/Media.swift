@@ -19,12 +19,24 @@ struct Media: Codable, Identifiable {
     let externalServiceSlug4k: String?
     let ratingKey: String?
     let ratingKey4k: String?
+    let movie: LinkedMovie?
+    let tv: LinkedTV?
     
     // Helper to determine active status
     var effectiveStatus: MediaStatus {
         return status ?? .unknown
     }
 }
+
+struct LinkedMovie: Codable, Sendable {
+    let title: String
+    // Add other fields if needed by UI
+}
+
+struct LinkedTV: Codable, Sendable {
+    let name: String
+}
+
 
 enum MediaStatus: Int, Codable {
     case unknown = 1

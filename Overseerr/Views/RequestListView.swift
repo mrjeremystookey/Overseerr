@@ -110,7 +110,7 @@ struct RequestRow: View {
                 )
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(request.movie?.title ?? request.tv?.name ?? "Request #\(request.id)")
+                Text(request.movie?.title ?? request.tv?.name ?? request.media?.movie?.title ?? request.media?.tv?.name ?? "Request #\(request.id)")
                     .font(.headline)
                     .lineLimit(1)
                 

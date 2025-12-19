@@ -19,7 +19,7 @@ struct ContentView: View {
                 List {
                     if let user = homeViewModel.currentUser {
                         Section("User") {
-                            Text("Logged in as: \(user.email ?? <#default value#>)")
+                            Text("Logged in as: \(user.email ?? "Unknown")")
                         }
                     }
                     

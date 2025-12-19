@@ -51,7 +51,6 @@ class AuthService: AuthServiceProtocol, ObservableObject {
             await MainActor.run {
                 self.currentUser = user
                 self.isAuthenticated = true
-                Logger.success("Login successful for \(user.email ?? <#default value#>)")
             }
         } catch {
             Logger.auth("Login failed: \(error.localizedDescription)")
@@ -80,7 +79,6 @@ class AuthService: AuthServiceProtocol, ObservableObject {
             await MainActor.run {
                 self.currentUser = user
                 self.isAuthenticated = true
-                Logger.auth("Session Valid: \(user.email ?? <#default value#>)")
             }
         } catch {
             await MainActor.run {
